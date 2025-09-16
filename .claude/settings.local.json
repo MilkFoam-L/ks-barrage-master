@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(pip --version)",
+      "Read(//c/Users/MilkFoam/Desktop/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
