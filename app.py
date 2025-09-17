@@ -268,24 +268,32 @@ def start_room_barrage(room_id):
     
     def run_barrage():
         try:
+            print(f"开始启动房间 {room_id} 的弹幕抓取")
+            print(f"房间信息: live_id={room['live_id']}, websocket_url={room['websocket_url']}")
+
             handler = BarrageHandler(room['live_id'], room_id, room['token'], room['websocket_url'])
             active_connections[room_id] = handler
-            
+
+            print(f"BarrageHandler 创建成功，房间 {room_id}")
+
             # 更新房间状态
             conn = sqlite3.connect('barrage.db')
             c = conn.cursor()
             c.execute('UPDATE rooms SET status="running" WHERE id=?', (room_id,))
             conn.commit()
             conn.close()
-            
+
+            print(f"开始调用 handler.start_run() 房间 {room_id}")
             # 开始抓取
             handler.start_run()
-            
+
         except Exception as e:
             print(f"启动弹幕抓取错误: {e}")
+            import traceback
+            traceback.print_exc()
             if room_id in active_connections:
                 del active_connections[room_id]
-            
+
             # 更新房间状态
             conn = sqlite3.connect('barrage.db')
             c = conn.cursor()

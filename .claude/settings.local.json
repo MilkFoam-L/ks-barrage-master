@@ -5,7 +5,8 @@
       "Bash(pip install:*)",
       "Bash(pip uninstall:*)",
       "Bash(pip --version)",
-      "Read(//c/Users/MilkFoam/Desktop/**)"
+      "Read(//c/Users/MilkFoam/Desktop/**)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
