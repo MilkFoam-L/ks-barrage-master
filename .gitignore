@@ -129,3 +129,14 @@ dmypy.json
 .pyre/
 .idea/
 .DS_Store
+
+# 项目特定文件
+# 本地数据库文件
+barrage.db
+*.db
+
+# 临时protobuf分析文件
+barrage-proto
+my-proto
+my-protobuf
+temp-protobuf
