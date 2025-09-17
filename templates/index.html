@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 快手弹幕爬取系统</title>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px 0;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .section h2 {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+        
+        .section h2::before {
+            content: '📺';
+            margin-right: 10px;
+        }
+        
+        .system-status h2::before {
+            content: '⚡';
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .form-group input::placeholder {
+            color: #666;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+        }
+        
+        .btn-info {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+        }
+        
+        .room-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .room-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .room-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .room-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .room-status {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-running {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .status-stopped {
+            background: #757575;
+            color: white;
+        }
+        
+        .status-error {
+            background: #f44336;
+            color: white;
+        }
+        
+        .room-info {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+        
+        .room-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .barrage-display {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-height: 500px;
+        }
+        
+        .barrage-display h2::before {
+            content: '💬';
+        }
+        
+        .barrage-controls {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+        
+        .barrage-filter {
+            flex: 1;
+        }
+        
+        .barrage-list {
+            height: 350px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+        }
+        
+        .barrage-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid #4CAF50;
+        }
+        
+        .barrage-meta {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+        
+        .barrage-content {
+            font-size: 0.95rem;
+        }
+        
+        .auto-scroll-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .auto-scroll-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+        
+        .auto-scroll-btn.active {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+        }
+        
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 快手弹幕爬取系统</h1>
+        <p>实时监控快手直播间弹幕，支持多房间管理</p>
+    </div>
+
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stats-cards">
+            <div class="stat-card">
+                <div class="stat-number" id="total-rooms">0</div>
+                <div class="stat-label">总房间数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="running-rooms">0</div>
+                <div class="stat-label">运行中</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="active-users">0</div>
+                <div class="stat-label">活跃用户</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-messages">0</div>
+                <div class="stat-label">总消息数</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- 房间管理 -->
+            <div class="section">
+                <h2>房间管理</h2>
+                
+                <form id="room-form">
+                    <div class="form-group">
+                        <label for="room-name">房间名称</label>
+                        <input type="text" id="room-name" placeholder="例如：主播名称" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="live-id">房间ID</label>
+                        <input type="text" id="live-id" placeholder="例如：d7h1YPIz3Tg" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="websocket-url">WebSocket地址</label>
+                        <input type="text" id="websocket-url" placeholder="wss://livejs-ws-group10.gifshow.com/websocket" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="token">Token</label>
+                        <input type="text" id="token" placeholder="输入token" required>
+                    </div>
+                    
+                    <button type="submit" class="btn">添加房间</button>
+                    <button type="button" class="btn btn-warning" id="clear-form">清空表单</button>
+                    <button type="button" class="btn btn-info" id="add-test-room">添加测试房间</button>
+                </form>
+            </div>
+
+            <!-- 系统状态 -->
+            <div class="section system-status">
+                <h2>系统状态</h2>
+                
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <span style="margin-right: 10px;">系统状态:</span>
+                        <span class="room-status status-running">WebSocket已连接</span>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                        <span style="margin-right: 10px;">服务器状态:</span>
+                        <span class="room-status" id="server-status">检查中...</span>
+                    </div>
+                </div>
+                
+                <button class="btn btn-info" onclick="startAllRooms()">启动所有房间</button>
+                <button class="btn btn-danger" onclick="stopAllRooms()">停止所有房间</button>
+            </div>
+        </div>
+
+        <!-- 房间列表 -->
+        <div class="section">
+            <h2>房间列表</h2>
+            <div class="room-list" id="room-list">
+                <!-- 房间项目将在这里动态加载 -->
+            </div>
+        </div>
+
+        <!-- 弹幕显示 -->
+        <div class="barrage-display">
+            <h2>实时弹幕</h2>
+            
+            <div class="barrage-controls">
+                <select class="barrage-filter" id="room-filter">
+                    <option value="all">全部房间</option>
+                    <!-- 房间选项将动态加载 -->
+                </select>
+                
+                <button class="btn btn-info" onclick="clearBarrages()">清空弹幕</button>
+                <button class="btn btn-warning" onclick="toggleAutoScroll()">自动滚动</button>
+            </div>
+            
+            <div class="barrage-list" id="barrage-list">
+                <div style="text-align: center; opacity: 0.5; margin-top: 100px;">
+                    等待弹幕数据...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="auto-scroll-btn active" id="auto-scroll-btn" onclick="toggleAutoScroll()">
+        自动滚动: 开启
+    </button>
+
+    <script>
+        // 全局变量
+        const socket = io();
+        let rooms = [];
+        let barrages = [];
+        let autoScroll = true;
+        let currentRoomFilter = 'all';
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRooms();
+            setupEventListeners();
+            updateStats();
+            checkServerStatus();
+            
+            // 定时更新统计信息
+            setInterval(updateStats, 5000);
+        });
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 表单提交
+            document.getElementById('room-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addRoom();
+            });
+            
+            // 清空表单
+            document.getElementById('clear-form').addEventListener('click', clearForm);
+            
+            // 添加测试房间
+            document.getElementById('add-test-room').addEventListener('click', addTestRoom);
+            
+            // 房间过滤器
+            document.getElementById('room-filter').addEventListener('change', function(e) {
+                currentRoomFilter = e.target.value;
+                filterBarrages();
+            });
+            
+            // Socket.IO事件监听
+            socket.on('new_barrage', function(data) {
+                addBarrage(data);
+            });
+            
+            socket.on('room_status', function(data) {
+                updateRoomStatus(data);
+                console.log(`房间 ${data.room_id} 状态更新:`, data);
+            });
+            
+            socket.on('connect', function() {
+                console.log('WebSocket已连接');
+                updateServerStatus('connected');
+            });
+            
+            socket.on('disconnect', function() {
+                console.log('WebSocket已断开');
+                updateServerStatus('disconnected');
+            });
+        }
+
+        // 加载房间列表
+        async function loadRooms() {
+            try {
+                const response = await fetch('/api/rooms');
+                rooms = await response.json();
+                renderRooms();
+                updateRoomFilter();
+            } catch (error) {
+                console.error('加载房间列表失败:', error);
+            }
+        }
+
+        // 渲染房间列表
+        function renderRooms() {
+            const roomList = document.getElementById('room-list');
+            
+            if (rooms.length === 0) {
+                roomList.innerHTML = '<div style="text-align: center; opacity: 0.5; padding: 40px;">暂无房间，请添加房间</div>';
+                return;
+            }
+            
+            roomList.innerHTML = rooms.map(room => `
+                <div class="room-item">
+                    <div class="room-header">
+                        <div class="room-name">${room.room_name}</div>
+                        <span class="room-status status-${room.status}">${getStatusText(room.status)}</span>
+                    </div>
+                    <div class="room-info">
+                        房间ID: ${room.live_id}<br>
+                        WebSocket: ${room.websocket_url.substring(0, 40)}...<br>
+                        ${room.connection_status ? `<span style="color: ${getConnectionStatusColor(room.connection_status)};">连接状态: ${getConnectionStatusText(room.connection_status)}</span>` : ''}
+                        ${room.connection_message ? `<br><small style="opacity: 0.8;">${room.connection_message}</small>` : ''}
+                    </div>
+                    <div class="room-actions">
+                        <button class="btn btn-info" onclick="startRoom(${room.id})" ${room.status === 'running' ? 'disabled' : ''}>
+                            启动
+                        </button>
+                        <button class="btn btn-warning" onclick="stopRoom(${room.id})" ${room.status !== 'running' ? 'disabled' : ''}>
+                            停止
+                        </button>
+                        <button class="btn" onclick="viewRoom(${room.id})">查看</button>
+                        <button class="btn btn-danger" onclick="deleteRoom(${room.id})">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 获取状态文本
+        function getStatusText(status) {
+            const statusMap = {
+                'running': '运行中',
+                'stopped': '已停止', 
+                'error': '错误'
+            };
+            return statusMap[status] || '未知';
+        }
+        
+        // 获取连接状态文本
+        function getConnectionStatusText(status) {
+            const statusMap = {
+                'connected': '已连接',
+                'disconnected': '已断开',
+                'error': '连接错误',
+                'connecting': '连接中'
+            };
+            return statusMap[status] || '未知';
+        }
+        
+        // 获取连接状态颜色
+        function getConnectionStatusColor(status) {
+            const colorMap = {
+                'connected': '#4CAF50',
+                'disconnected': '#ff9800', 
+                'error': '#f44336',
+                'connecting': '#2196F3'
+            };
+            return colorMap[status] || '#757575';
+        }
+
+        // 添加房间
+        async function addRoom() {
+            const roomName = document.getElementById('room-name').value;
+            const liveId = document.getElementById('live-id').value;
+            const websocketUrl = document.getElementById('websocket-url').value;
+            const token = document.getElementById('token').value;
+            
+            try {
+                const response = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        room_name: roomName,
+                        live_id: liveId,
+                        websocket_url: websocketUrl,
+                        token: token
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('房间添加成功!');
+                    clearForm();
+                    loadRooms();
+                } else {
+                    alert('添加房间失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('添加房间失败: ' + error.message);
+            }
+        }
+
+        // 清空表单
+        function clearForm() {
+            document.getElementById('room-form').reset();
+        }
+        
+        // 添加测试房间
+        function addTestRoom() {
+            document.getElementById('room-name').value = '测试直播间';
+            document.getElementById('live-id').value = 'd7h1YPIz3Tg';
+            document.getElementById('websocket-url').value = 'wss://livejs-ws-group10.gifshow.com/websocket';
+            document.getElementById('token').value = 'KuCKhNm1/iKJQVCauHIV54X0FYULqL4XrRE6VkStVXb7nrpuEvQfOkIDqtsPikWe00lldwQfqd6dLw2KYO16roBouaaYfHcnQJerS3GG0jwlwHwBS4OV8/JKi71sHoeYJk39TIpwmgVd4OZHSpvpnSZsd6d7PP+jVDdQmfvzBTqs2EsSwVC55JOaxnIJIYvXKfx2lV8hWO9BTDJCtWEVfw==';
+        }
+
+        // 启动房间
+        async function startRoom(roomId) {
+            try {
+                const response = await fetch(`/api/rooms/${roomId}/start`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                alert(result.message);
+                loadRooms();
+            } catch (error) {
+                alert('启动房间失败: ' + error.message);
+            }
+        }
+
+        // 停止房间
+        async function stopRoom(roomId) {
+            try {
+                const response = await fetch(`/api/rooms/${roomId}/stop`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                alert(result.message);
+                loadRooms();
+            } catch (error) {
+                alert('停止房间失败: ' + error.message);
+            }
+        }
+
+        // 查看房间弹幕
+        async function viewRoom(roomId) {
+            currentRoomFilter = roomId.toString();
+            document.getElementById('room-filter').value = currentRoomFilter;
+            
+            // 加载房间历史弹幕
+            try {
+                const response = await fetch(`/api/rooms/${roomId}/barrages`);
+                const data = await response.json();
+                
+                // 清空当前弹幕并加载历史弹幕
+                barrages = data.barrages.map(b => ({
+                    room_id: b.room_id,
+                    user_name: b.user_name,
+                    content: b.content,
+                    timestamp: new Date(b.timestamp).toLocaleTimeString(),
+                    room_name: rooms.find(r => r.id === b.room_id)?.room_name || '未知房间'
+                }));
+                
+                renderBarrages();
+            } catch (error) {
+                console.error('加载房间弹幕失败:', error);
+            }
+        }
+
+        // 删除房间
+        async function deleteRoom(roomId) {
+            if (!confirm('确定要删除这个房间吗？这将删除所有相关的弹幕记录。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/rooms/${roomId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                alert(result.message);
+                loadRooms();
+            } catch (error) {
+                alert('删除房间失败: ' + error.message);
+            }
+        }
+
+        // 启动所有房间
+        function startAllRooms() {
+            rooms.forEach(room => {
+                if (room.status !== 'running') {
+                    startRoom(room.id);
+                }
+            });
+        }
+
+        // 停止所有房间
+        function stopAllRooms() {
+            rooms.forEach(room => {
+                if (room.status === 'running') {
+                    stopRoom(room.id);
+                }
+            });
+        }
+
+        // 添加弹幕到显示列表
+        function addBarrage(data) {
+            const room = rooms.find(r => r.id === data.room_id);
+            const barrageData = {
+                ...data,
+                room_name: room ? room.room_name : '未知房间'
+            };
+            
+            barrages.unshift(barrageData);
+            
+            // 限制弹幕数量，避免内存溢出
+            if (barrages.length > 500) {
+                barrages = barrages.slice(0, 500);
+            }
+            
+            renderBarrages();
+            
+            if (autoScroll) {
+                const barrageList = document.getElementById('barrage-list');
+                barrageList.scrollTop = 0;
+            }
+        }
+
+        // 渲染弹幕列表
+        function renderBarrages() {
+            const barrageList = document.getElementById('barrage-list');
+            const filteredBarrages = filterBarragesByRoom();
+            
+            if (filteredBarrages.length === 0) {
+                barrageList.innerHTML = '<div style="text-align: center; opacity: 0.5; margin-top: 100px;">暂无弹幕数据...</div>';
+                return;
+            }
+            
+            barrageList.innerHTML = filteredBarrages.map(barrage => `
+                <div class="barrage-item">
+                    <div class="barrage-meta">
+                        <span>[${barrage.room_name}]</span>
+                        <span>${barrage.user_name}</span>
+                        <span>${barrage.timestamp}</span>
+                    </div>
+                    <div class="barrage-content">${barrage.content}</div>
+                </div>
+            `).join('');
+        }
+
+        // 根据房间过滤弹幕
+        function filterBarragesByRoom() {
+            if (currentRoomFilter === 'all') {
+                return barrages;
+            }
+            return barrages.filter(barrage => barrage.room_id.toString() === currentRoomFilter);
+        }
+
+        // 过滤弹幕
+        function filterBarrages() {
+            renderBarrages();
+        }
+
+        // 更新房间过滤器选项
+        function updateRoomFilter() {
+            const roomFilter = document.getElementById('room-filter');
+            const currentValue = roomFilter.value;
+            
+            roomFilter.innerHTML = '<option value="all">全部房间</option>' + 
+                rooms.map(room => `<option value="${room.id}">${room.room_name}</option>`).join('');
+            
+            if (rooms.find(r => r.id.toString() === currentValue)) {
+                roomFilter.value = currentValue;
+            }
+        }
+
+        // 清空弹幕
+        function clearBarrages() {
+            barrages = [];
+            renderBarrages();
+        }
+
+        // 切换自动滚动
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            const btn = document.getElementById('auto-scroll-btn');
+            
+            if (autoScroll) {
+                btn.classList.add('active');
+                btn.textContent = '自动滚动: 开启';
+            } else {
+                btn.classList.remove('active'); 
+                btn.textContent = '自动滚动: 关闭';
+            }
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('total-rooms').textContent = rooms.length;
+            document.getElementById('running-rooms').textContent = rooms.filter(r => r.status === 'running').length;
+            document.getElementById('active-users').textContent = new Set(barrages.map(b => b.user_name)).size;
+            document.getElementById('total-messages').textContent = barrages.length;
+        }
+
+        // 检查服务器状态
+        function checkServerStatus() {
+            if (socket.connected) {
+                updateServerStatus('connected');
+            } else {
+                updateServerStatus('disconnected');
+            }
+        }
+
+        // 更新服务器状态显示
+        function updateServerStatus(status) {
+            const statusElement = document.getElementById('server-status');
+            
+            if (status === 'connected') {
+                statusElement.textContent = '已连接';
+                statusElement.className = 'room-status status-running';
+            } else {
+                statusElement.textContent = '未连接';
+                statusElement.className = 'room-status status-error';
+            }
+        }
+        
+        // 更新房间状态
+        function updateRoomStatus(data) {
+            // 找到对应的房间并更新状态
+            const room = rooms.find(r => r.id === data.room_id);
+            if (room) {
+                room.connection_status = data.status;
+                room.connection_message = data.message;
+                renderRooms(); // 重新渲染房间列表
+                
+                // 显示状态通知
+                showStatusNotification(data);
+            }
+        }
+        
+        // 显示状态通知
+        function showStatusNotification(data) {
+            const room = rooms.find(r => r.id === data.room_id);
+            const roomName = room ? room.room_name : `房间${data.room_id}`;
+            
+            let icon = '🔵';
+            let color = '#2196F3';
+            
+            if (data.status === 'connected') {
+                icon = '✅';
+                color = '#4CAF50';
+            } else if (data.status === 'error') {
+                icon = '❌';
+                color = '#f44336';
+            } else if (data.status === 'disconnected') {
+                icon = '🔴';
+                color = '#ff9800';
+            }
+            
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${color};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 1000;
+                max-width: 300px;
+                word-wrap: break-word;
+            `;
+            notification.innerHTML = `
+                <div style="font-weight: bold;">${icon} ${roomName}</div>
+                <div style="font-size: 0.9rem; margin-top: 5px;">${data.message}</div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

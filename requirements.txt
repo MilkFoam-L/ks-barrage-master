@@ -35,3 +35,7 @@ vine==5.0.0
 websocket-client-py3==0.15.0
 zipp==3.1.0
 zope.interface==5.4.0
+Flask>=2.0.0
+Flask-SocketIO>=5.0.0
+python-socketio>=5.0.0
+python-engineio>=4.0.0

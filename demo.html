@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快手弹幕系统演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .demo-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success {
+            color: #52c41a;
+            font-weight: bold;
+        }
+        .info {
+            color: #1890ff;
+        }
+        .code {
+            background: #f6f8fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        .btn {
+            background: #1890ff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #40a9ff;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+        }
+        .status.warning {
+            background: #fffbe6;
+            border: 1px solid #ffe58f;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 快手弹幕系统演示</h1>
+    
+    <div class="demo-section">
+        <h2>📋 系统状态</h2>
+        <div class="status success">
+            <div class="success">✅ 弹幕连接测试成功</div>
+            <p>已成功连接到快手弹幕服务器并接收到实时数据</p>
+        </div>
+        
+        <div class="status success">
+            <div class="success">✅ 数据解析正常</div>
+            <p>能够正确解析用户名、弹幕内容、观众数等信息</p>
+        </div>
+        
+        <div class="status success">
+            <div class="success">✅ Token认证通过</div>
+            <p>使用新Token成功绕过认证限制</p>
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>📊 测试数据示例</h2>
+        <h3>成功接收的弹幕数据：</h3>
+        <div class="code">
+观众人数: 7.3万
+点赞数: 244.6万
+
+弹幕示例：
+- 用户: 独久厌闹ᝰ🎀 → "努力总是会有回报的"  
+- 用户: 🌈不想起名字了🌈 → "下载小铃铛领1k"
+- 用户: 💫小星星💫 → "下载小铃铛领1k" 
+- 用户: 丶吹梦到西洲々 → "下载小铃铛领1k"
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>🛠️ 使用说明</h2>
+        
+        <h3>1. 启动系统</h3>
+        <div class="code">python app.py</div>
+        
+        <h3>2. 访问网页界面</h3>
+        <div class="code">http://localhost:5000</div>
+        
+        <h3>3. 添加房间</h3>
+        <p>点击"添加测试房间"按钮可以快速添加已验证的房间配置</p>
+        
+        <h3>4. 启动弹幕抓取</h3>
+        <p>点击房间的"启动"按钮开始抓取实时弹幕</p>
+    </div>
+    
+    <div class="demo-section">
+        <h2>🔧 配置信息</h2>
+        
+        <h3>测试房间配置：</h3>
+        <div class="code">
+房间ID: d7h1YPIz3Tg
+WebSocket: wss://livejs-ws-group10.gifshow.com/websocket
+Token: KuCKhNm1/iKJQVCauHIV54X0FYULqL4XrRE6VkStVXb7nrpuEvQfOkIDqtsPikWe00lldwQ...
+        </div>
+        
+        <div class="status warning">
+            <strong>注意：</strong>Token具有时效性，过期后需要重新获取
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>🌐 快速访问</h2>
+        <a href="http://localhost:5000" class="btn" target="_blank">打开网页界面</a>
+        <a href="javascript:void(0)" class="btn" onclick="testConnection()">测试连接</a>
+    </div>
+    
+    <script>
+        function testConnection() {
+            alert('请打开浏览器控制台查看 http://localhost:5000 的运行状态');
+            window.open('http://localhost:5000', '_blank');
+        }
+        
+        // 检查服务状态
+        fetch('http://localhost:5000/api/rooms')
+            .then(response => {
+                if (response.ok) {
+                    document.querySelector('.demo-section .status.warning').style.display = 'none';
+                } else {
+                    throw new Error('服务未启动');
+                }
+            })
+            .catch(error => {
+                const warningDiv = document.createElement('div');
+                warningDiv.className = 'status warning';
+                warningDiv.innerHTML = '<strong>⚠️ 服务未启动</strong><p>请先运行 python app.py 启动服务</p>';
+                document.querySelector('.demo-section').appendChild(warningDiv);
+            });
+    </script>
+</body>
+</html>

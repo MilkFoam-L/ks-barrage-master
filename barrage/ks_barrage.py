@@ -26,8 +26,12 @@ class KuaishouBarrage(object):
     def __init__(self, live_id):
         # 直播 id
         self.live_id = live_id
-        # 刚开始连接时发送的数据
-        self.start_run()
+        # WebSocket连接对象
+        self.ws = None
+        # 是否停止标志
+        self.should_stop = False
+        # 心跳线程标志
+        self.heartbeat_running = False
 
     @staticmethod
     def get_page_id():
@@ -143,11 +147,21 @@ class KuaishouBarrage(object):
         # 发送心跳包维持连接
         def run():
             # 定时发送心跳包
-            while True:
+            self.heartbeat_running = True
+            while not self.should_stop and self.heartbeat_running:
                 # 抓包可以知道是每 20s 发送一次心跳包
-                time.sleep(20)
-                # 发送心跳-当前时间戳-毫秒
-                ws.send(self.heartbeat, websocket.ABNF.OPCODE_BINARY)
+                for i in range(20):  # 分成20次1秒的睡眠，方便快速停止
+                    if self.should_stop:
+                        break
+                    time.sleep(1)
+                
+                if not self.should_stop:
+                    try:
+                        # 发送心跳-当前时间戳-毫秒
+                        ws.send(self.heartbeat, websocket.ABNF.OPCODE_BINARY)
+                    except:
+                        break
+            self.heartbeat_running = False
 
         _thread.start_new_thread(run, ())
 
@@ -170,7 +184,7 @@ class KuaishouBarrage(object):
 
     @property
     def token(self):
-        token = "KuCKhNm1/iKJQVCauHIV54X0FYULqL4XrRE6VkStVXb7nrpuEvQfOkIDqtsPikWe00lldwQfqd6dLw2KYO16roBouaaYfHcnQJerS3GG0jwlwHwBS4OV8/JKi71sHoeYJk39TIpwmgVd4OZHSpvpnSZsd6d7PP+jVDdQmfvzBTqs2EsSwVC55JOaxnIJIYvXj3Kqe1knSN5VF/EN5YQGOw=="
+        token = "KuCKhNm1/iKJQVCauHIV54X0FYULqL4XrRE6VkStVXb7nrpuEvQfOkIDqtsPikWe00lldwQfqd6dLw2KYO16roBouaaYfHcnQJerS3GG0jwlwHwBS4OV8/JKi71sHoeYJk39TIpwmgVd4OZHSpvpnSZsd6d7PP+jVDdQmfvzBTqs2EsSwVC55JOaxnIJIYvXKfx2lV8hWO9BTDJCtWEVfw=="
         return token
 
     @property
@@ -184,17 +198,25 @@ class KuaishouBarrage(object):
         url = self.url
 
         # 创建一个长连接
-        ws = websocket.WebSocketApp(
+        self.ws = websocket.WebSocketApp(
             url, on_message=self.on_message, on_error=self.on_error, on_close=self.on_close, on_open=self.on_open
         )
         # 使用代理
-        # ws.run_forever(http_proxy_host='122.228.252.123', http_proxy_port='49628', )
+        # self.ws.run_forever(http_proxy_host='122.228.252.123', http_proxy_port='49628', )
         import ssl
         # 配置SSL上下文以允许SSL连接
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
-        ws.run_forever(sslopt={"context": ssl_context})
+        self.ws.run_forever(sslopt={"context": ssl_context})
+        
+    def stop(self):
+        """停止弹幕抓取"""
+        self.should_stop = True
+        self.heartbeat_running = False
+        if self.ws:
+            self.ws.close()
+            self.ws = None
 
 
 if __name__ == "__main__":
