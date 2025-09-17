@@ -71,7 +71,7 @@ class BarrageHandler(KuaishouBarrage):
     
     def on_open(self, ws):
         """连接建立时触发"""
-        print(f"✅ 房间 {self.room_id} WebSocket连接已建立")
+        print(f"[SUCCESS] 房间 {self.room_id} WebSocket连接已建立")
         socketio.emit('room_status', {
             'room_id': self.room_id,
             'status': 'connected',
@@ -81,7 +81,7 @@ class BarrageHandler(KuaishouBarrage):
     
     def on_error(self, ws, error):
         """通信发生错误时触发"""
-        print(f"❌ 房间 {self.room_id} WebSocket错误: {error}")
+        print(f"[ERROR] 房间 {self.room_id} WebSocket错误: {error}")
         socketio.emit('room_status', {
             'room_id': self.room_id,
             'status': 'error',
@@ -91,7 +91,7 @@ class BarrageHandler(KuaishouBarrage):
         
     def on_close(self, ws, close_status_code, close_msg):
         """连接关闭时触发"""
-        print(f"🔴 房间 {self.room_id} WebSocket连接已关闭，状态码: {close_status_code}, 消息: {close_msg}")
+        print(f"[CLOSE] 房间 {self.room_id} WebSocket连接已关闭，状态码: {close_status_code}, 消息: {close_msg}")
         socketio.emit('room_status', {
             'room_id': self.room_id,
             'status': 'disconnected',

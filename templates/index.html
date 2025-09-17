@@ -389,26 +389,62 @@
             <!-- 系统状态 -->
             <div class="section system-status">
                 <h2>系统状态</h2>
-                
-                <div style="margin-bottom: 15px;">
-                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                        <span style="margin-right: 10px;">系统状态:</span>
-                        <span class="room-status status-running">WebSocket已连接</span>
+
+                <div style="margin-bottom: 20px;">
+                    <!-- 第一行状态 -->
+                    <div style="display: flex; gap: 30px; margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center;">
+                            <span style="margin-right: 10px; font-weight: 600;">系统状态:</span>
+                            <span class="room-status status-running" id="websocket-status">WebSocket已连接</span>
+                        </div>
+
+                        <div style="display: flex; align-items: center;">
+                            <span style="margin-right: 10px; font-weight: 600;">服务器状态:</span>
+                            <span class="room-status" id="server-status">检查中...</span>
+                        </div>
                     </div>
-                    
-                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                        <span style="margin-right: 10px;">服务器状态:</span>
-                        <span class="room-status" id="server-status">检查中...</span>
+
+                    <!-- 第二行状态 -->
+                    <div style="display: flex; gap: 30px; margin-bottom: 15px;">
+                        <div style="display: flex; align-items: center;">
+                            <span style="margin-right: 10px; font-weight: 600;">活跃连接:</span>
+                            <span class="room-status status-stopped" id="active-connections">0</span>
+                        </div>
+
+                        <div style="display: flex; align-items: center;">
+                            <span style="margin-right: 10px; font-weight: 600;">系统运行时间:</span>
+                            <span class="room-status status-running" id="uptime">00:00:00</span>
+                        </div>
                     </div>
                 </div>
-                
-                <button class="btn btn-info" onclick="startAllRooms()">启动所有房间</button>
-                <button class="btn btn-danger" onclick="stopAllRooms()">停止所有房间</button>
+
+                <!-- 系统日志区域 -->
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-size: 1.1rem; margin-bottom: 10px; color: rgba(255,255,255,0.9);">📋 系统操作日志</h3>
+                    <div id="system-logs" style="
+                        background: rgba(0, 0, 0, 0.3);
+                        border-radius: 10px;
+                        padding: 15px;
+                        height: 200px;
+                        overflow-y: auto;
+                        font-size: 0.85rem;
+                        line-height: 1.4;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                    ">
+                        <div style="opacity: 0.6; text-align: center; margin-top: 80px;">等待系统操作日志...</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-info" onclick="startAllRooms()">启动所有房间</button>
+                    <button class="btn btn-danger" onclick="stopAllRooms()">停止所有房间</button>
+                    <button class="btn btn-warning" onclick="clearSystemLogs()">清空日志</button>
+                </div>
             </div>
         </div>
 
         <!-- 房间列表 -->
-        <div class="section">
+        <div class="section" style="margin-bottom: 40px;">
             <h2>房间列表</h2>
             <div class="room-list" id="room-list">
                 <!-- 房间项目将在这里动态加载 -->
@@ -416,19 +452,26 @@
         </div>
 
         <!-- 弹幕显示 -->
-        <div class="barrage-display">
+        <div class="barrage-display" style="margin-top: 40px;">
             <h2>实时弹幕</h2>
-            
+
             <div class="barrage-controls">
-                <select class="barrage-filter" id="room-filter">
-                    <option value="all">全部房间</option>
-                    <!-- 房间选项将动态加载 -->
-                </select>
-                
+                <div style="flex: 1; display: flex; align-items: center;">
+                    <span id="current-room-display" style="
+                        background: rgba(255, 255, 255, 0.1);
+                        padding: 8px 16px;
+                        border-radius: 8px;
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        font-weight: 600;
+                        color: rgba(255, 255, 255, 0.9);
+                    ">当前显示: 全部房间</span>
+                </div>
+
+                <button class="btn" onclick="showAllRooms()">显示全部</button>
                 <button class="btn btn-info" onclick="clearBarrages()">清空弹幕</button>
                 <button class="btn btn-warning" onclick="toggleAutoScroll()">自动滚动</button>
             </div>
-            
+
             <div class="barrage-list" id="barrage-list">
                 <div style="text-align: center; opacity: 0.5; margin-top: 100px;">
                     等待弹幕数据...
@@ -448,6 +491,100 @@
         let barrages = [];
         let autoScroll = true;
         let currentRoomFilter = 'all';
+        let systemLogs = [];
+        let startTime = Date.now();
+
+        // 系统日志管理
+        function addSystemLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = {
+                time: timestamp,
+                message: message,
+                type: type
+            };
+
+            systemLogs.unshift(logEntry);
+
+            // 限制日志数量
+            if (systemLogs.length > 100) {
+                systemLogs = systemLogs.slice(0, 100);
+            }
+
+            updateSystemLogsDisplay();
+        }
+
+        function updateSystemLogsDisplay() {
+            const logsContainer = document.getElementById('system-logs');
+
+            if (systemLogs.length === 0) {
+                logsContainer.innerHTML = '<div style="opacity: 0.6; text-align: center; margin-top: 80px;">等待系统操作日志...</div>';
+                return;
+            }
+
+            logsContainer.innerHTML = systemLogs.map(log => {
+                let iconColor = '#2196F3';
+                let icon = 'ℹ️';
+
+                if (log.type === 'success') {
+                    iconColor = '#4CAF50';
+                    icon = '✅';
+                } else if (log.type === 'warning') {
+                    iconColor = '#FF9800';
+                    icon = '⚠️';
+                } else if (log.type === 'error') {
+                    iconColor = '#F44336';
+                    icon = '❌';
+                } else if (log.type === 'barrage') {
+                    iconColor = '#9C27B0';
+                    icon = '💬';
+                }
+
+                return `
+                    <div style="margin-bottom: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <span style="color: ${iconColor};">${icon}</span>
+                        <span style="color: rgba(255,255,255,0.7); margin: 0 8px;">[${log.time}]</span>
+                        <span style="color: rgba(255,255,255,0.9);">${log.message}</span>
+                    </div>
+                `;
+            }).join('');
+
+            // 自动滚动到顶部
+            logsContainer.scrollTop = 0;
+        }
+
+        function clearSystemLogs() {
+            systemLogs = [];
+            updateSystemLogsDisplay();
+            addSystemLog('系统日志已清空', 'info');
+        }
+
+        function updateSystemStatus() {
+            // 更新活跃连接数
+            const activeConnections = rooms.filter(r => r.status === 'running').length;
+            document.getElementById('active-connections').textContent = activeConnections;
+
+            // 更新连接状态样式
+            const activeElement = document.getElementById('active-connections');
+            if (activeConnections > 0) {
+                activeElement.className = 'room-status status-running';
+            } else {
+                activeElement.className = 'room-status status-stopped';
+            }
+
+            // 更新运行时间
+            updateUptime();
+        }
+
+        function updateUptime() {
+            const now = Date.now();
+            const uptime = Math.floor((now - startTime) / 1000);
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const seconds = uptime % 60;
+
+            const uptimeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('uptime').textContent = uptimeString;
+        }
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -455,9 +592,13 @@
             setupEventListeners();
             updateStats();
             checkServerStatus();
-            
-            // 定时更新统计信息
+
+            // 添加系统启动日志
+            addSystemLog('🚀 快手弹幕系统已启动', 'success');
+
+            // 定时更新统计信息和系统状态
             setInterval(updateStats, 5000);
+            setInterval(updateSystemStatus, 1000);
         });
 
         // 设置事件监听器
@@ -467,37 +608,47 @@
                 e.preventDefault();
                 addRoom();
             });
-            
+
             // 清空表单
             document.getElementById('clear-form').addEventListener('click', clearForm);
-            
+
             // 添加测试房间
             document.getElementById('add-test-room').addEventListener('click', addTestRoom);
-            
-            // 房间过滤器
-            document.getElementById('room-filter').addEventListener('change', function(e) {
-                currentRoomFilter = e.target.value;
-                filterBarrages();
-            });
-            
+
             // Socket.IO事件监听
             socket.on('new_barrage', function(data) {
                 addBarrage(data);
+                // 移除弹幕日志记录，只处理弹幕数据
             });
-            
+
             socket.on('room_status', function(data) {
                 updateRoomStatus(data);
+                const room = rooms.find(r => r.id === data.room_id);
+                const roomName = room ? room.room_name : `房间${data.room_id}`;
+
+                let logType = 'info';
+                if (data.status === 'connected') {
+                    logType = 'success';
+                } else if (data.status === 'error') {
+                    logType = 'error';
+                } else if (data.status === 'disconnected') {
+                    logType = 'warning';
+                }
+
+                addSystemLog(`🔗 [${roomName}] ${data.message}`, logType);
                 console.log(`房间 ${data.room_id} 状态更新:`, data);
             });
-            
+
             socket.on('connect', function() {
                 console.log('WebSocket已连接');
                 updateServerStatus('connected');
+                addSystemLog('✅ WebSocket连接已建立', 'success');
             });
-            
+
             socket.on('disconnect', function() {
                 console.log('WebSocket已断开');
                 updateServerStatus('disconnected');
+                addSystemLog('❌ WebSocket连接已断开', 'error');
             });
         }
 
@@ -507,7 +658,6 @@
                 const response = await fetch('/api/rooms');
                 rooms = await response.json();
                 renderRooms();
-                updateRoomFilter();
             } catch (error) {
                 console.error('加载房间列表失败:', error);
             }
@@ -586,8 +736,10 @@
             const liveId = document.getElementById('live-id').value;
             const websocketUrl = document.getElementById('websocket-url').value;
             const token = document.getElementById('token').value;
-            
+
             try {
+                addSystemLog(`➕ 正在添加房间: ${roomName}...`, 'info');
+
                 const response = await fetch('/api/rooms', {
                     method: 'POST',
                     headers: {
@@ -600,17 +752,20 @@
                         token: token
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok) {
+                    addSystemLog(`✅ 房间添加成功: ${roomName} (ID: ${result.id})`, 'success');
                     alert('房间添加成功!');
                     clearForm();
                     loadRooms();
                 } else {
+                    addSystemLog(`❌ 房间添加失败: ${roomName} - ${result.error}`, 'error');
                     alert('添加房间失败: ' + result.error);
                 }
             } catch (error) {
+                addSystemLog(`❌ 房间添加异常: ${roomName} - ${error.message}`, 'error');
                 alert('添加房间失败: ' + error.message);
             }
         }
@@ -631,14 +786,30 @@
         // 启动房间
         async function startRoom(roomId) {
             try {
+                const room = rooms.find(r => r.id === roomId);
+                const roomName = room ? room.room_name : `房间${roomId}`;
+
+                addSystemLog(`🚀 正在启动房间: ${roomName}...`, 'info');
+
                 const response = await fetch(`/api/rooms/${roomId}/start`, {
                     method: 'POST'
                 });
-                
+
                 const result = await response.json();
-                alert(result.message);
+
+                if (response.ok) {
+                    addSystemLog(`✅ 房间启动成功: ${roomName}`, 'success');
+                    alert(result.message);
+                } else {
+                    addSystemLog(`❌ 房间启动失败: ${roomName} - ${result.message || result.error}`, 'error');
+                    alert('启动房间失败: ' + (result.message || result.error));
+                }
+
                 loadRooms();
             } catch (error) {
+                const room = rooms.find(r => r.id === roomId);
+                const roomName = room ? room.room_name : `房间${roomId}`;
+                addSystemLog(`❌ 房间启动异常: ${roomName} - ${error.message}`, 'error');
                 alert('启动房间失败: ' + error.message);
             }
         }
@@ -646,28 +817,49 @@
         // 停止房间
         async function stopRoom(roomId) {
             try {
+                const room = rooms.find(r => r.id === roomId);
+                const roomName = room ? room.room_name : `房间${roomId}`;
+
+                addSystemLog(`🛑 正在停止房间: ${roomName}...`, 'info');
+
                 const response = await fetch(`/api/rooms/${roomId}/stop`, {
                     method: 'POST'
                 });
-                
+
                 const result = await response.json();
-                alert(result.message);
+
+                if (response.ok) {
+                    addSystemLog(`🛑 房间已停止: ${roomName}`, 'warning');
+                    alert(result.message);
+                } else {
+                    addSystemLog(`❌ 房间停止失败: ${roomName} - ${result.message || result.error}`, 'error');
+                    alert('停止房间失败: ' + (result.message || result.error));
+                }
+
                 loadRooms();
             } catch (error) {
+                const room = rooms.find(r => r.id === roomId);
+                const roomName = room ? room.room_name : `房间${roomId}`;
+                addSystemLog(`❌ 房间停止异常: ${roomName} - ${error.message}`, 'error');
                 alert('停止房间失败: ' + error.message);
             }
         }
 
         // 查看房间弹幕
         async function viewRoom(roomId) {
+            const room = rooms.find(r => r.id === roomId);
+            const roomName = room ? room.room_name : `房间${roomId}`;
+
             currentRoomFilter = roomId.toString();
-            document.getElementById('room-filter').value = currentRoomFilter;
-            
+
+            // 更新当前房间显示器
+            document.getElementById('current-room-display').textContent = `当前显示: ${roomName}`;
+
             // 加载房间历史弹幕
             try {
                 const response = await fetch(`/api/rooms/${roomId}/barrages`);
                 const data = await response.json();
-                
+
                 // 清空当前弹幕并加载历史弹幕
                 barrages = data.barrages.map(b => ({
                     room_id: b.room_id,
@@ -676,47 +868,79 @@
                     timestamp: new Date(b.timestamp).toLocaleTimeString(),
                     room_name: rooms.find(r => r.id === b.room_id)?.room_name || '未知房间'
                 }));
-                
+
                 renderBarrages();
+                addSystemLog(`👁️ 切换到房间弹幕: ${roomName}`, 'info');
             } catch (error) {
                 console.error('加载房间弹幕失败:', error);
+                addSystemLog(`❌ 加载房间弹幕失败: ${roomName} - ${error.message}`, 'error');
             }
         }
 
         // 删除房间
         async function deleteRoom(roomId) {
-            if (!confirm('确定要删除这个房间吗？这将删除所有相关的弹幕记录。')) {
+            const room = rooms.find(r => r.id === roomId);
+            const roomName = room ? room.room_name : `房间${roomId}`;
+
+            if (!confirm(`确定要删除房间 "${roomName}" 吗？这将删除所有相关的弹幕记录。`)) {
                 return;
             }
-            
+
             try {
+                addSystemLog(`🗑️ 正在删除房间: ${roomName}...`, 'warning');
+
                 const response = await fetch(`/api/rooms/${roomId}`, {
                     method: 'DELETE'
                 });
-                
+
                 const result = await response.json();
-                alert(result.message);
+
+                if (response.ok) {
+                    addSystemLog(`🗑️ 房间已删除: ${roomName}`, 'warning');
+                    alert(result.message);
+                } else {
+                    addSystemLog(`❌ 房间删除失败: ${roomName} - ${result.message || result.error}`, 'error');
+                    alert('删除房间失败: ' + (result.message || result.error));
+                }
+
                 loadRooms();
             } catch (error) {
+                addSystemLog(`❌ 房间删除异常: ${roomName} - ${error.message}`, 'error');
                 alert('删除房间失败: ' + error.message);
             }
         }
 
         // 启动所有房间
         function startAllRooms() {
-            rooms.forEach(room => {
-                if (room.status !== 'running') {
-                    startRoom(room.id);
-                }
+            const stoppedRooms = rooms.filter(room => room.status !== 'running');
+
+            if (stoppedRooms.length === 0) {
+                addSystemLog('ℹ️ 所有房间都已在运行中', 'info');
+                alert('所有房间都已在运行中');
+                return;
+            }
+
+            addSystemLog(`🚀 正在启动所有房间 (${stoppedRooms.length}个)...`, 'info');
+
+            stoppedRooms.forEach(room => {
+                startRoom(room.id);
             });
         }
 
         // 停止所有房间
         function stopAllRooms() {
-            rooms.forEach(room => {
-                if (room.status === 'running') {
-                    stopRoom(room.id);
-                }
+            const runningRooms = rooms.filter(room => room.status === 'running');
+
+            if (runningRooms.length === 0) {
+                addSystemLog('ℹ️ 所有房间都已停止', 'info');
+                alert('所有房间都已停止');
+                return;
+            }
+
+            addSystemLog(`🛑 正在停止所有房间 (${runningRooms.length}个)...`, 'warning');
+
+            runningRooms.forEach(room => {
+                stopRoom(room.id);
             });
         }
 
@@ -773,28 +997,19 @@
             return barrages.filter(barrage => barrage.room_id.toString() === currentRoomFilter);
         }
 
-        // 过滤弹幕
-        function filterBarrages() {
-            renderBarrages();
-        }
-
-        // 更新房间过滤器选项
-        function updateRoomFilter() {
-            const roomFilter = document.getElementById('room-filter');
-            const currentValue = roomFilter.value;
-            
-            roomFilter.innerHTML = '<option value="all">全部房间</option>' + 
-                rooms.map(room => `<option value="${room.id}">${room.room_name}</option>`).join('');
-            
-            if (rooms.find(r => r.id.toString() === currentValue)) {
-                roomFilter.value = currentValue;
-            }
-        }
-
         // 清空弹幕
         function clearBarrages() {
             barrages = [];
             renderBarrages();
+            addSystemLog('🗑️ 弹幕列表已清空', 'info');
+        }
+
+        // 显示全部房间弹幕
+        function showAllRooms() {
+            currentRoomFilter = 'all';
+            document.getElementById('current-room-display').textContent = '当前显示: 全部房间';
+            renderBarrages();
+            addSystemLog('👁️ 切换到全部房间弹幕', 'info');
         }
 
         // 切换自动滚动
@@ -830,14 +1045,19 @@
 
         // 更新服务器状态显示
         function updateServerStatus(status) {
-            const statusElement = document.getElementById('server-status');
-            
+            const serverStatusElement = document.getElementById('server-status');
+            const websocketStatusElement = document.getElementById('websocket-status');
+
             if (status === 'connected') {
-                statusElement.textContent = '已连接';
-                statusElement.className = 'room-status status-running';
+                serverStatusElement.textContent = '已连接';
+                serverStatusElement.className = 'room-status status-running';
+                websocketStatusElement.textContent = '已连接';
+                websocketStatusElement.className = 'room-status status-running';
             } else {
-                statusElement.textContent = '未连接';
-                statusElement.className = 'room-status status-error';
+                serverStatusElement.textContent = '未连接';
+                serverStatusElement.className = 'room-status status-error';
+                websocketStatusElement.textContent = '已断开';
+                websocketStatusElement.className = 'room-status status-error';
             }
         }
         
