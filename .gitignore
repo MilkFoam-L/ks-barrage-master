@@ -140,3 +140,7 @@ barrage-proto
 my-proto
 my-protobuf
 temp-protobuf
+
+barrage.db
+.claude/
+.claude/settings.local.json
