@@ -12,10 +12,14 @@ import os
 # 添加项目路径到系统路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from barrage.ks_barrage import KuaishouBarrage
+from barrage.auto_collector import create_auto_collector
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ks-barrage-secret-key'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# 创建自动化采集器实例
+auto_collector = create_auto_collector()
 
 # 数据库初始化
 def init_db():
@@ -389,6 +393,68 @@ def get_all_barrages():
         'page': page,
         'per_page': per_page
     })
+
+
+@app.route('/api/auto-extract', methods=['POST'])
+def auto_extract():
+    """自动提取直播间参数"""
+    try:
+        data = request.json
+        live_url = data.get('live_url')
+        mode = data.get('mode', 'auto')
+
+        if not live_url:
+            return jsonify({'success': False, 'error': '缺少直播间URL'}), 400
+
+        print(f"收到自动提取请求: {live_url}, 模式: {mode}")
+
+        # 调用自动化采集器
+        result = auto_collector.collect(live_url, mode)
+
+        if result['success']:
+            print(f"自动提取成功: {result}")
+            return jsonify(result)
+        else:
+            print(f"自动提取失败: {result['error']}")
+            return jsonify(result), 400
+
+    except Exception as e:
+        print(f"自动提取异常: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'服务器错误: {str(e)}'}), 500
+
+
+@app.route('/api/parse-hex', methods=['POST'])
+def parse_hex():
+    """解析hex数据"""
+    try:
+        data = request.json
+        live_url = data.get('live_url')
+        websocket_url = data.get('websocket_url')
+        hex_data = data.get('hex_data')
+
+        if not all([live_url, websocket_url, hex_data]):
+            return jsonify({'success': False, 'error': '缺少必要参数'}), 400
+
+        print(f"收到hex解析请求: {live_url}")
+
+        # 调用自动化采集器的解析方法
+        result = auto_collector.parse_hex(live_url, websocket_url, hex_data)
+
+        if result['success']:
+            print(f"hex解析成功: {result}")
+            return jsonify(result)
+        else:
+            print(f"hex解析失败: {result['error']}")
+            return jsonify(result), 400
+
+    except Exception as e:
+        print(f"hex解析异常: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'服务器错误: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     init_db()

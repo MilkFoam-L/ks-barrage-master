@@ -358,32 +358,67 @@
             <!-- 房间管理 -->
             <div class="section">
                 <h2>房间管理</h2>
-                
-                <form id="room-form">
-                    <div class="form-group">
-                        <label for="room-name">房间名称</label>
-                        <input type="text" id="room-name" placeholder="例如：主播名称" required>
+
+                <!-- 智能模式区域 -->
+                <div style="margin-bottom: 30px; background: rgba(76, 175, 80, 0.1); border-radius: 12px; padding: 20px; border: 1px solid rgba(76, 175, 80, 0.3);">
+                    <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                        <span style="font-size: 1.2rem; font-weight: bold; margin-right: 10px;">🚀 智能模式</span>
+                        <span style="background: rgba(76, 175, 80, 0.2); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">推荐</span>
                     </div>
-                    
+                    <p style="margin-bottom: 15px; opacity: 0.9; font-size: 0.95rem;">只需输入直播间URL，系统自动获取所有参数并开始采集弹幕</p>
+
                     <div class="form-group">
-                        <label for="live-id">房间ID</label>
-                        <input type="text" id="live-id" placeholder="例如：d7h1YPIz3Tg" required>
+                        <label for="live-url">直播间URL</label>
+                        <input type="text" id="live-url" placeholder="例如：https://live.kuaishou.com/u/Kslala666" style="background: rgba(255, 255, 255, 0.95);">
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="websocket-url">WebSocket地址</label>
-                        <input type="text" id="websocket-url" placeholder="wss://livejs-ws-group10.gifshow.com/websocket" required>
+
+                    <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px;">
+                        <button type="button" class="btn" id="smart-add-btn" style="background: linear-gradient(45deg, #4CAF50, #45a049);">
+                            🎯 一键启动
+                        </button>
+                        <button type="button" class="btn btn-info" id="semi-auto-btn">
+                            🔧 半自动模式
+                        </button>
+                        <div id="smart-status" style="margin-left: 10px; font-size: 0.9rem; opacity: 0.8;"></div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="token">Token</label>
-                        <input type="text" id="token" placeholder="输入token" required>
-                    </div>
-                    
-                    <button type="submit" class="btn">添加房间</button>
-                    <button type="button" class="btn btn-warning" id="clear-form">清空表单</button>
-                    <button type="button" class="btn btn-info" id="add-test-room">添加测试房间</button>
-                </form>
+                </div>
+
+                <!-- 手动模式切换 -->
+                <div style="margin-bottom: 20px;">
+                    <button type="button" class="btn btn-warning" id="toggle-manual-mode" style="font-size: 0.9rem;">
+                        ⚙️ 切换到手动模式
+                    </button>
+                    <span style="margin-left: 10px; font-size: 0.85rem; opacity: 0.7;">手动模式适用于高级用户</span>
+                </div>
+
+                <!-- 手动模式表单 -->
+                <div id="manual-form-container" style="display: none;">
+                    <form id="room-form">
+                        <div class="form-group">
+                            <label for="room-name">房间名称</label>
+                            <input type="text" id="room-name" placeholder="例如：主播名称" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="live-id">房间ID</label>
+                            <input type="text" id="live-id" placeholder="例如：d7h1YPIz3Tg" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="websocket-url">WebSocket地址</label>
+                            <input type="text" id="websocket-url" placeholder="wss://livejs-ws-group10.gifshow.com/websocket" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="token">Token</label>
+                            <input type="text" id="token" placeholder="输入token" required>
+                        </div>
+
+                        <button type="submit" class="btn">添加房间</button>
+                        <button type="button" class="btn btn-warning" id="clear-form">清空表单</button>
+                        <button type="button" class="btn btn-info" id="add-test-room">添加测试房间</button>
+                    </form>
+                </div>
             </div>
 
             <!-- 系统状态 -->
@@ -615,6 +650,15 @@
             // 添加测试房间
             document.getElementById('add-test-room').addEventListener('click', addTestRoom);
 
+            // 智能模式按钮
+            document.getElementById('smart-add-btn').addEventListener('click', smartAddRoom);
+
+            // 半自动模式按钮
+            document.getElementById('semi-auto-btn').addEventListener('click', semiAutoMode);
+
+            // 切换手动模式按钮
+            document.getElementById('toggle-manual-mode').addEventListener('click', toggleManualMode);
+
             // Socket.IO事件监听
             socket.on('new_barrage', function(data) {
                 addBarrage(data);
@@ -728,6 +772,315 @@
                 'connecting': '#2196F3'
             };
             return colorMap[status] || '#757575';
+        }
+
+        // 智能模式：一键启动
+        async function smartAddRoom() {
+            const liveUrl = document.getElementById('live-url').value.trim();
+            if (!liveUrl) {
+                alert('请输入直播间URL');
+                return;
+            }
+
+            if (!liveUrl.includes('live.kuaishou.com')) {
+                alert('请输入有效的快手直播间URL');
+                return;
+            }
+
+            const statusDiv = document.getElementById('smart-status');
+            const btn = document.getElementById('smart-add-btn');
+
+            try {
+                btn.disabled = true;
+                btn.textContent = '🔄 正在自动提取...';
+                statusDiv.textContent = '正在分析页面，获取参数...';
+                statusDiv.style.color = '#2196F3';
+
+                addSystemLog(`🚀 开始智能提取: ${liveUrl}`, 'info');
+
+                const response = await fetch('/api/auto-extract', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        live_url: liveUrl,
+                        mode: 'auto'
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // 检查是否所有必需参数都存在
+                    const requiredFields = ['websocket_url', 'token', 'live_id'];
+                    const missingFields = requiredFields.filter(field => !result[field]);
+
+                    if (missingFields.length > 0) {
+                        statusDiv.textContent = `❌ 提取不完整，缺少: ${missingFields.join(', ')}`;
+                        statusDiv.style.color = '#f44336';
+                        addSystemLog(`❌ 提取不完整，缺少: ${missingFields.join(', ')}`, 'error');
+                        return;
+                    }
+
+                    statusDiv.textContent = '✅ 自动提取成功，正在添加房间...';
+                    statusDiv.style.color = '#4CAF50';
+
+                    addSystemLog(`✅ 自动提取成功: ${result.room_name}`, 'success');
+                    addSystemLog(`📝 WebSocket: ${result.websocket_url.substring(0, 50)}...`, 'info');
+                    addSystemLog(`📝 Token长度: ${result.token.length}`, 'info');
+                    addSystemLog(`📝 Live ID: ${result.live_id}`, 'info');
+
+                    // 立即添加并启动房间
+                    await addRoomFromExtracted(result);
+
+                    // 清空URL输入框
+                    document.getElementById('live-url').value = '';
+                    statusDiv.textContent = '🎉 房间已自动添加并启动！';
+
+                    setTimeout(() => {
+                        statusDiv.textContent = '';
+                    }, 3000);
+
+                } else {
+                    statusDiv.textContent = '❌ 自动提取失败';
+                    statusDiv.style.color = '#f44336';
+                    addSystemLog(`❌ 智能提取失败: ${result.error}`, 'error');
+                    alert('自动提取失败: ' + result.error);
+                }
+
+            } catch (error) {
+                statusDiv.textContent = '❌ 连接错误，请重试';
+                statusDiv.style.color = '#f44336';
+                addSystemLog(`❌ 智能提取异常: ${error.message}`, 'error');
+                console.error('智能模式错误:', error);
+                alert('连接错误: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🎯 一键启动';
+            }
+        }
+
+        // 半自动模式：引导用户手动获取
+        function semiAutoMode(liveUrl = null) {
+            const url = liveUrl || document.getElementById('live-url').value.trim();
+
+            if (!url && !liveUrl) {
+                alert('请先输入直播间URL');
+                return;
+            }
+
+            addSystemLog(`🔧 启动半自动模式: ${url}`, 'info');
+
+            // 显示获取指导窗口
+            showHexGuideModal(url);
+        }
+
+        // 显示hex数据获取指导窗口
+        function showHexGuideModal(liveUrl) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            modal.innerHTML = `
+                <div style="
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    border-radius: 20px;
+                    padding: 30px;
+                    max-width: 600px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    color: white;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                ">
+                    <h2 style="margin-bottom: 20px; text-align: center;">🔧 获取参数指导</h2>
+
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                        <p><strong>目标直播间:</strong> ${liveUrl}</p>
+                    </div>
+
+                    <div style="text-align: left; line-height: 1.6;">
+                        <h3>📋 操作步骤：</h3>
+                        <ol style="padding-left: 20px;">
+                            <li><strong>打开直播间:</strong> 在新标签页中访问 <a href="${liveUrl}" target="_blank" style="color: #4CAF50;">${liveUrl}</a></li>
+                            <li><strong>打开开发者工具:</strong> 按 F12 或右键选择"检查"</li>
+                            <li><strong>切换到Network面板:</strong> 点击开发者工具中的"Network"标签</li>
+                            <li><strong>过滤WebSocket:</strong> 在筛选框中输入 "WS" 或 "websocket"</li>
+                            <li><strong>刷新页面:</strong> 按 F5 刷新直播间页面</li>
+                            <li><strong>找到WebSocket连接:</strong> 查找类似 "websocket" 的连接</li>
+                            <li><strong>查看消息:</strong> 点击该连接，切换到"Messages"标签</li>
+                            <li><strong>复制hex数据:</strong> 复制第一个发送消息的十六进制数据</li>
+                        </ol>
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: bold;">🔗 WebSocket地址:</label>
+                        <input type="text" id="modal-websocket-url" placeholder="wss://livejs-ws-group10.gifshow.com/websocket" style="
+                            width: 100%;
+                            padding: 10px;
+                            border: none;
+                            border-radius: 5px;
+                            background: rgba(255,255,255,0.9);
+                            color: #333;
+                            margin-bottom: 15px;
+                        ">
+
+                        <label style="display: block; margin-bottom: 10px; font-weight: bold;">📦 Hex数据:</label>
+                        <textarea id="modal-hex-data" placeholder="粘贴复制的十六进制数据..." style="
+                            width: 100%;
+                            height: 100px;
+                            padding: 10px;
+                            border: none;
+                            border-radius: 5px;
+                            background: rgba(255,255,255,0.9);
+                            color: #333;
+                            font-family: monospace;
+                            resize: vertical;
+                        "></textarea>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button onclick="processHexData('${liveUrl}')" style="
+                            background: linear-gradient(45deg, #4CAF50, #45a049);
+                            color: white;
+                            border: none;
+                            padding: 12px 25px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            margin-right: 10px;
+                            font-weight: bold;
+                        ">🚀 解析并启动</button>
+
+                        <button onclick="closeHexModal()" style="
+                            background: linear-gradient(45deg, #757575, #616161);
+                            color: white;
+                            border: none;
+                            padding: 12px 25px;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-weight: bold;
+                        ">❌ 取消</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            window.currentModal = modal;
+        }
+
+        // 处理hex数据
+        async function processHexData(liveUrl) {
+            const websocketUrl = document.getElementById('modal-websocket-url').value.trim();
+            const hexData = document.getElementById('modal-hex-data').value.trim();
+
+            if (!websocketUrl || !hexData) {
+                alert('请填写WebSocket地址和Hex数据');
+                return;
+            }
+
+            try {
+                addSystemLog(`🔄 正在解析hex数据...`, 'info');
+
+                const response = await fetch('/api/parse-hex', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        live_url: liveUrl,
+                        websocket_url: websocketUrl,
+                        hex_data: hexData
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    addSystemLog(`✅ Hex解析成功: ${result.room_name}`, 'success');
+
+                    // 自动添加并启动房间
+                    await addRoomFromExtracted(result);
+                    closeHexModal();
+
+                    alert('🎉 解析成功！房间已自动添加并启动');
+                } else {
+                    addSystemLog(`❌ Hex解析失败: ${result.error}`, 'error');
+                    alert('解析失败: ' + result.error);
+                }
+
+            } catch (error) {
+                addSystemLog(`❌ Hex解析异常: ${error.message}`, 'error');
+                alert('解析失败: ' + error.message);
+            }
+        }
+
+        // 关闭hex指导窗口
+        function closeHexModal() {
+            if (window.currentModal) {
+                document.body.removeChild(window.currentModal);
+                window.currentModal = null;
+            }
+        }
+
+        // 从提取的数据添加房间
+        async function addRoomFromExtracted(data) {
+            try {
+                const response = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        room_name: data.room_name,
+                        live_id: data.live_id,
+                        websocket_url: data.websocket_url,
+                        token: data.token
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    addSystemLog(`✅ 房间自动添加成功: ${data.room_name}`, 'success');
+                    loadRooms();
+
+                    // 自动启动房间
+                    setTimeout(() => {
+                        startRoom(result.id);
+                    }, 1000);
+                } else {
+                    addSystemLog(`❌ 房间添加失败: ${result.error}`, 'error');
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                addSystemLog(`❌ 房间添加异常: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // 切换手动模式
+        function toggleManualMode() {
+            const manualContainer = document.getElementById('manual-form-container');
+            const toggleBtn = document.getElementById('toggle-manual-mode');
+
+            if (manualContainer.style.display === 'none') {
+                manualContainer.style.display = 'block';
+                toggleBtn.textContent = '⬆️ 隐藏手动模式';
+                addSystemLog('🔧 切换到手动模式', 'info');
+            } else {
+                manualContainer.style.display = 'none';
+                toggleBtn.textContent = '⚙️ 切换到手动模式';
+            }
         }
 
         // 添加房间

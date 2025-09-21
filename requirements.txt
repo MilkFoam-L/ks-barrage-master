@@ -39,3 +39,5 @@ Flask>=2.0.0
 Flask-SocketIO>=5.0.0
 python-socketio>=5.0.0
 python-engineio>=4.0.0
+requests>=2.25.0
+selenium>=4.0.0
